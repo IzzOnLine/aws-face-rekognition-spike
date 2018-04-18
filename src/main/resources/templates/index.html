@@ -1,0 +1,90 @@
+<html xmlns:th="http://www.thymeleaf.org">
+
+
+<body>
+	<div>
+
+		<div>COMPARE</div>
+		<form name="compare" method="POST" action="/compare-faces-s3"
+			enctype="multipart/form-data">
+			<table>
+				<tr>
+					<td>File to upload:</td>
+					<td><input type="file" name="file" /></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><input type="submit" value="Upload" /></td>
+				</tr>
+			</table>
+		</form>
+
+		<div>DETECT</div>
+		<form name="detect" method="POST" action="/faces"
+			enctype="multipart/form-data">
+			<table>
+				<tr>
+					<td>File to upload:</td>
+					<td><input type="file" name="file" /></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><input type="submit" value="Upload" /></td>
+				</tr>
+			</table>
+		</form>
+
+		<div style="text-align: center;">
+			<video id="screenshot-video" class="videostream" style="display: none;" autoplay=""></video>
+			<img id="screenshot-img">
+			<p>
+				<button id="screenshot-button">Take screenshot</button>
+			</p>
+		</div>
+
+		<video autoplay></video>
+		<img src="">
+		<canvas style="display: none;"></canvas>
+
+		<script>
+
+const constraints = {
+		  video: true
+		};
+		
+function handleSuccess(stream) {
+  video.srcObject = stream;
+}
+
+function handleError(error) {
+  console.error('Reeeejected!', error);
+}
+
+navigator.mediaDevices.getUserMedia(constraints).
+  then(handleSuccess).catch(handleError);
+  const button = document.querySelector('#screenshot-button');
+  const img = document.querySelector('#screenshot-img');
+  const video = document.querySelector('#screenshot-video');
+
+  const canvas = document.createElement('canvas');
+
+  button.onclick = video.onclick = function() {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    // Other browsers will fall back to image/png
+    img.src = canvas.toDataURL('image/webp');
+  };
+
+  function handleSuccess(stream) {
+    video.srcObject = stream;
+  }
+
+  navigator.mediaDevices.getUserMedia(constraints).
+      then(handleSuccess).catch(handleError);
+</script>
+
+
+	</div>
+</body>
+</html>
