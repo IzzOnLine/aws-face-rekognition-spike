@@ -71,20 +71,7 @@ public class RekognitionController {
 	}
 
 	@PostMapping("/compare-faces-s3")
-	public Person compareFacesWithImagesInS3Bucket(@RequestParam(name = "file") MultipartFile sourceImage,
-			HttpServletRequest req) throws Exception {
-
-		if (!sourceImage.isEmpty()) {
-			String uploadsDir = "/uploads/";
-			String realPathtoUploads = req.getServletContext().getRealPath(uploadsDir);
-			if (!new File(realPathtoUploads).exists()) {
-				new File(realPathtoUploads).mkdir();
-			}
-			String orgName = sourceImage.getOriginalFilename();
-			String filePath = realPathtoUploads + orgName;
-			File dest = new File(filePath);
-			sourceImage.transferTo(dest);
-		}
+	public Person compareFacesWithImagesInS3Bucket(@RequestParam(name = "file") MultipartFile sourceImage) throws Exception {
 
 		List<Person> possiblePerson = new ArrayList<Person>();
 		Person person = new Person();
