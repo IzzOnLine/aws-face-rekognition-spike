@@ -1,10 +1,11 @@
 package it.izzonline.awsfacerekognitionspike;
 
-import java.io.FileInputStream;
-import java.io.InputStream;
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -70,8 +71,20 @@ public class RekognitionController {
 	}
 
 	@PostMapping("/compare-faces-s3")
-	public Person compareFacesWithImagesInS3Bucket(@RequestParam(name = "file") MultipartFile sourceImage)
-			throws Exception {
+	public Person compareFacesWithImagesInS3Bucket(@RequestParam(name = "file") MultipartFile sourceImage,
+			HttpServletRequest req) throws Exception {
+
+		if (!sourceImage.isEmpty()) {
+			String uploadsDir = "/uploads/";
+			String realPathtoUploads = req.getServletContext().getRealPath(uploadsDir);
+			if (!new File(realPathtoUploads).exists()) {
+				new File(realPathtoUploads).mkdir();
+			}
+			String orgName = sourceImage.getOriginalFilename();
+			String filePath = realPathtoUploads + orgName;
+			File dest = new File(filePath);
+			sourceImage.transferTo(dest);
+		}
 
 		List<Person> possiblePerson = new ArrayList<Person>();
 		Person person = new Person();
