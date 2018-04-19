@@ -1,11 +1,8 @@
 package it.izzonline.awsfacerekognitionspike;
 
-import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-
-import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -71,7 +68,8 @@ public class RekognitionController {
 	}
 
 	@PostMapping("/compare-faces-s3")
-	public Person compareFacesWithImagesInS3Bucket(@RequestParam(name = "file") MultipartFile sourceImage) throws Exception {
+	public Person compareFacesWithImagesInS3Bucket(@RequestParam(name = "file") MultipartFile sourceImage)
+			throws Exception {
 
 		List<Person> possiblePerson = new ArrayList<Person>();
 		Person person = new Person();
@@ -118,11 +116,12 @@ public class RekognitionController {
 			}
 		}
 
-		if (!possiblePerson.isEmpty() && possiblePerson.size() == 1) {
-			return person;
-		} else {
-			throw new Exception();
-		}
+		if (possiblePerson.isEmpty())
+			throw new Exception("No matching face found");
+		if (possiblePerson.size() > 1)
+			throw new Exception("Too many matching faces found");
+
+		return person;
 	}
 
 	// @PostMapping("/compare-faces")
