@@ -25,5 +25,5 @@
 /.nb-gradle/
 
 mvnw*
-file*
 .mvn
+log

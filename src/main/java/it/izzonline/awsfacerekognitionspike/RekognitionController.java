@@ -1,9 +1,14 @@
 package it.izzonline.awsfacerekognitionspike;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FilenameFilter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -48,6 +53,14 @@ public class RekognitionController {
 	private static final String LAST_NAME = "lastName";
 	private static final String FIRST_NAME = "firstName";
 
+	@Value("${photo.folder}")
+	private String photoFolder;
+
+	static final String[] EXTENSIONS = new String[] { "gif", "png", "bmp", "jpg", "jpeg" };
+	
+	private static final Logger logger = LoggerFactory.getLogger(RekognitionController.class);	
+
+
 	@PostMapping("/faces")
 	public List<FaceDetail> detectFacesFromFile(@RequestParam(name = "file") MultipartFile sourceImage)
 			throws Exception {
@@ -73,12 +86,9 @@ public class RekognitionController {
 
 		List<Person> possiblePerson = new ArrayList<Person>();
 		Person person = new Person();
-		Float similarityThreshold = new Float(similarityThresholdPercent);
 		String targetImage = "";
 
-		ByteBuffer sourceImageBytes = null;
-
-		sourceImageBytes = ByteBuffer.wrap(IOUtils.toByteArray(sourceImage.getInputStream()));
+		ByteBuffer sourceImageBytes = ByteBuffer.wrap(IOUtils.toByteArray(sourceImage.getInputStream()));
 		ObjectListing objectListing = s3Client.listObjects(photoBucket);
 
 		// confronta con tutte le immagini presenti nel bucket s3
@@ -88,7 +98,7 @@ public class RekognitionController {
 			Image source = new Image().withBytes(sourceImageBytes);
 			Image target = new Image().withS3Object(new S3Object().withName(targetImage).withBucket(photoBucket));
 			CompareFacesRequest request = new CompareFacesRequest().withSourceImage(source).withTargetImage(target)
-					.withSimilarityThreshold(similarityThreshold);
+					.withSimilarityThreshold(new Float(similarityThresholdPercent));
 
 			CompareFacesResult compareFacesResult = rekognitionClient.compareFaces(request);
 
@@ -124,57 +134,54 @@ public class RekognitionController {
 		return person;
 	}
 
-	// @PostMapping("/compare-faces")
-	// public void compareFaces() {
-	// Float similarityThreshold = 70F;
-	// String sourceImage = "/Users/st3fania/Downloads/stefy.jpeg";
-	// String targetImage = "/Users/st3fania/Downloads/stefy2.jpeg";
-	// ByteBuffer sourceImageBytes = null;
-	// ByteBuffer targetImageBytes = null;
-	//
-	// // Load source and target images and create input parameters
-	// try (InputStream inputStream = new FileInputStream(new File(sourceImage))) {
-	// sourceImageBytes = ByteBuffer.wrap(IOUtils.toByteArray(inputStream));
-	// } catch (Exception e) {
-	// System.out.println("Failed to load source image " + sourceImage);
-	// System.exit(1);
-	// }
-	// try (InputStream inputStream = new FileInputStream(new File(targetImage))) {
-	// targetImageBytes = ByteBuffer.wrap(IOUtils.toByteArray(inputStream));
-	// } catch (Exception e) {
-	// System.out.println("Failed to load target images: " + targetImage);
-	// System.exit(1);
-	// }
-	//
-	// Image source = new Image().withBytes(sourceImageBytes);
-	// Image target = new Image().withBytes(targetImageBytes);
-	//
-	// CompareFacesRequest request = new
-	// CompareFacesRequest().withSourceImage(source).withTargetImage(target)
-	// .withSimilarityThreshold(similarityThreshold);
-	//
-	// // Call operation
-	// CompareFacesResult compareFacesResult =
-	// rekognitionClient.compareFaces(request);
-	//
-	// // Display results
-	// List<CompareFacesMatch> faceDetails = compareFacesResult.getFaceMatches();
-	// for (CompareFacesMatch match : faceDetails) {
-	// ComparedFace face = match.getFace();
-	// BoundingBox position = face.getBoundingBox();
-	// System.out.println("Face at " + position.getLeft().toString() + " " +
-	// position.getTop() + " matches with "
-	// + face.getConfidence().toString() + "% confidence.");
-	//
-	// }
-	// List<ComparedFace> uncompared = compareFacesResult.getUnmatchedFaces();
-	//
-	// System.out.println("There were " + uncompared.size() + " that did not
-	// match");
-	// System.out.println("Source image rotation: " +
-	// compareFacesResult.getSourceImageOrientationCorrection());
-	// System.out.println("target image rotation: " +
-	// compareFacesResult.getTargetImageOrientationCorrection());
-	// }
+	@PostMapping("/compare-faces")
+	public boolean compareFacesWithImagesInFolder(@RequestParam(name = "file") MultipartFile sourceImage)
+			throws Exception {
+
+		ByteBuffer sourceImageBytes = ByteBuffer.wrap(IOUtils.toByteArray(sourceImage.getInputStream()));
+
+		Image source = new Image().withBytes(sourceImageBytes);
+
+		File dir = new File(photoFolder);
+
+		if (dir.isDirectory() && dir.listFiles(IMAGE_FILTER).length>0) {
+			for (final File f : dir.listFiles(IMAGE_FILTER)) {
+
+				ByteBuffer targetImageBuffer = ByteBuffer.wrap(IOUtils.toByteArray(new FileInputStream(f)));
+
+				Image target = new Image().withBytes(targetImageBuffer);
+
+				CompareFacesRequest request = new CompareFacesRequest().withSourceImage(source).withTargetImage(target)
+						.withSimilarityThreshold(new Float(similarityThresholdPercent));
+
+				CompareFacesResult compareFacesResult = rekognitionClient.compareFaces(request);
+
+				List<CompareFacesMatch> faceDetails = compareFacesResult.getFaceMatches();
+
+				for (CompareFacesMatch match : faceDetails) {
+					ComparedFace face = match.getFace();
+					if (face.getConfidence().floatValue() >= similarityThresholdPercent) {
+						logger.debug("Found known face in "+f.getName() +" image");
+						return true;
+					}
+				}
+			}
+		}else {
+			throw new Exception(dir + " is not a folder or doesn't contains any image file!");
+		}
+		return false;
+	}
+
+	static final FilenameFilter IMAGE_FILTER = new FilenameFilter() {
+		@Override
+		public boolean accept(final File dir, final String name) {
+			for (final String ext : EXTENSIONS) {
+				if (name.endsWith("." + ext)) {
+					return (true);
+				}
+			}
+			return (false);
+		}
+	};
 
 }
