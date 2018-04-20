@@ -1,4 +1,4 @@
-package it.izzonline.awsfacerekognitionspike;
+package it.izzonline.awsfacerekognitionspike.model;
 
 import java.io.Serializable;
 
